@@ -1,0 +1,388 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* Lobby */
+#lobby {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 2rem;
+}
+
+#lobby h1 {
+    font-size: 2.5rem;
+    color: #fff;
+}
+
+.lobby-box {
+    background: #16213e;
+    padding: 2rem;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 300px;
+}
+
+.lobby-box input {
+    padding: 0.75rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    background: #1a1a2e;
+    color: #fff;
+}
+
+.lobby-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.join-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.join-row input {
+    flex: 1;
+    text-transform: uppercase;
+}
+
+button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    background: #e94560;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #ff6b6b;
+}
+
+/* Game */
+#game {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+#top-bar {
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: #16213e;
+    align-items: center;
+}
+
+#top-bar span {
+    margin-right: auto;
+}
+
+#top-bar button {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+#room-display {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+#players-display {
+    color: #888;
+}
+
+/* Zones */
+#zones {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: #0f0f23;
+}
+
+.zone {
+    background: #16213e;
+    border-radius: 8px;
+    padding: 0.5rem;
+    min-width: 100px;
+    min-height: 160px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.zone-label {
+    font-size: 0.7rem;
+    color: #666;
+    text-transform: uppercase;
+    position: absolute;
+    top: 4px;
+    left: 8px;
+}
+
+#hand {
+    flex: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: flex-end;
+    padding-top: 1.5rem;
+    gap: 0.25rem;
+}
+
+#library, #graveyard, #exile {
+    width: 100px;
+}
+
+#library {
+    overflow: hidden;
+    height: 160px;
+}
+
+#library .card-in-zone {
+    display: none;
+}
+
+#library .card-in-zone:nth-last-child(-n+3) {
+    display: block;
+    margin-top: 0;
+    position: absolute;
+}
+
+#library .card-in-zone:nth-last-child(3) { top: 24px; }
+#library .card-in-zone:nth-last-child(2) { top: 27px; }
+#library .card-in-zone:nth-last-child(1) { top: 30px; }
+
+.library-count {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: #e94560;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    z-index: 100;
+}
+
+.card-stack {
+    position: relative;
+    width: 70px;
+    height: 100px;
+    margin-top: 1.5rem;
+}
+
+/* Table area */
+#table-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#opponent-battlefields {
+    height: 30%;
+    background: linear-gradient(to bottom, #12122a 0%, #1a1a2e 100%);
+    border-bottom: 1px solid #333;
+    position: relative;
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem;
+    overflow-x: auto;
+}
+
+.opponent-zone-mini {
+    background: #16213e;
+    border-radius: 6px;
+    padding: 0.5rem;
+    min-width: 200px;
+    position: relative;
+}
+
+.opponent-zone-mini .zone-label {
+    font-size: 0.65rem;
+    color: #888;
+}
+
+/* Battlefield - shared play area */
+#battlefield {
+    flex: 1;
+    background:
+        radial-gradient(ellipse at center, #1e2d4a 0%, #16213e 50%, #1a1a2e 100%);
+    position: relative;
+    overflow: hidden;
+    min-height: 200px;
+}
+
+.table-divider {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    background: linear-gradient(to right, transparent, #444, transparent);
+    pointer-events: none;
+}
+
+#my-battlefield {
+    display: none;
+}
+
+/* Cards */
+.card {
+    width: 70px;
+    height: 100px;
+    border-radius: 5px;
+    background-size: cover;
+    background-position: center;
+    cursor: grab;
+    position: absolute;
+    transition: transform 0.1s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.card:hover {
+    z-index: 1000;
+    transform: scale(1.1);
+}
+
+.card.dragging {
+    cursor: grabbing;
+    z-index: 1001;
+    transform: scale(1.05);
+}
+
+.card.tapped {
+    transform: rotate(90deg);
+}
+
+.card.tapped:hover {
+    transform: rotate(90deg) scale(1.1);
+}
+
+.card.face-down {
+    background: #1a1a2e !important;
+    background-image: linear-gradient(135deg, #2a2a4e 25%, transparent 25%),
+                      linear-gradient(225deg, #2a2a4e 25%, transparent 25%),
+                      linear-gradient(45deg, #2a2a4e 25%, transparent 25%),
+                      linear-gradient(315deg, #2a2a4e 25%, #1a1a2e 25%) !important;
+    background-size: 10px 10px !important;
+    background-position: 0 0, 5px 0, 5px -5px, 0px 5px !important;
+    border: 2px solid #444;
+}
+
+.card-in-hand {
+    position: relative;
+}
+
+.card-in-zone {
+    position: relative;
+    margin-top: -80px;
+}
+
+.card-in-zone:first-child {
+    margin-top: 1.5rem;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: #16213e;
+    padding: 2rem;
+    border-radius: 12px;
+    min-width: 400px;
+    max-width: 600px;
+}
+
+.modal-content h2 {
+    margin-bottom: 1rem;
+}
+
+.modal-content textarea {
+    width: 100%;
+    height: 200px;
+    padding: 1rem;
+    border: none;
+    border-radius: 6px;
+    background: #1a1a2e;
+    color: #fff;
+    font-family: monospace;
+    resize: vertical;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+#load-status {
+    margin-top: 1rem;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* Opponent info in top area */
+.opponent-info {
+    background: #16213e;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 150px;
+}
+
+.opponent-info .name {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.opponent-info .stats {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.opponent-cards {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.opponent-cards .mini-card {
+    width: 20px;
+    height: 28px;
+    background: #333;
+    border-radius: 2px;
+}

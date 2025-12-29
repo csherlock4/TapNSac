@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Table</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Lobby -->
+    <div id="lobby">
+        <h1>MTG Shared Table</h1>
+        <div class="lobby-box">
+            <input type="text" id="player-name" placeholder="Your name" value="Player">
+            <div class="lobby-buttons">
+                <button onclick="createRoom()">Create Room</button>
+                <div class="join-row">
+                    <input type="text" id="room-code" placeholder="CODE" maxlength="4">
+                    <button onclick="joinRoom()">Join</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game -->
+    <div id="game" class="hidden">
+        <div id="top-bar">
+            <span id="room-display">Room: ----</span>
+            <span id="players-display">Players: 0</span>
+            <button onclick="showDeckModal()">Load Deck</button>
+            <button onclick="shuffleLibrary()">Shuffle</button>
+            <button onclick="drawCard()">Draw</button>
+            <button onclick="untapAll()">Untap All</button>
+        </div>
+
+        <div id="table-area">
+            <!-- Opponents' battlefield halves at top -->
+            <div id="opponent-battlefields"></div>
+
+            <!-- Shared battlefield - the table -->
+            <div id="battlefield" data-zone="battlefield">
+                <div class="table-divider"></div>
+            </div>
+
+            <!-- Your play area -->
+            <div id="my-battlefield"></div>
+        </div>
+
+        <!-- Your zones at bottom -->
+        <div id="zones">
+            <div id="library" class="zone" data-zone="library">
+                <span class="zone-label">Library</span>
+            </div>
+            <div id="hand" class="zone" data-zone="hand">
+                <span class="zone-label">Hand</span>
+            </div>
+            <div id="graveyard" class="zone" data-zone="graveyard">
+                <span class="zone-label">Graveyard</span>
+            </div>
+            <div id="exile" class="zone" data-zone="exile">
+                <span class="zone-label">Exile</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deck Modal -->
+    <div id="deck-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Load Deck</h2>
+            <textarea id="deck-input" placeholder="Paste your deck list here...
+1 Lightning Bolt
+4 Mountain
+2x Sol Ring
+1 Black Lotus (LEA)"></textarea>
+            <div class="modal-buttons">
+                <button onclick="loadDeck()">Load</button>
+                <button onclick="hideDeckModal()">Cancel</button>
+            </div>
+            <div id="load-status"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
