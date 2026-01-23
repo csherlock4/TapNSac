@@ -20,13 +20,11 @@ env/
 .idea/
 *.swp
 *.swo
+.gitignore
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Markdown / Documentation
-*.md
 
 # Logs
 *.log

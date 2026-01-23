@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MTG Table</title>
+    <title>Tap N Sac</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Lobby -->
     <div id="lobby">
-        <h1>MTG Shared Table</h1>
+        <h1>Tap N Sac</h1>
         <div class="lobby-box">
             <input type="text" id="player-name" placeholder="Your name" value="Player">
             <div class="lobby-buttons">
@@ -27,6 +27,13 @@
         <div id="top-bar">
             <span id="room-display">Room: ----</span>
             <span id="players-display">Players: 0</span>
+            <div id="life-total">
+                <button onclick="adjustLife(-1)">-</button>
+                <span id="my-life">20</span>
+                <button onclick="adjustLife(1)">+</button>
+            </div>
+            <div id="player-counters"></div>
+            <button onclick="showAddCounterModal('player')">+ Counter</button>
             <button onclick="showDeckModal()">Load Deck</button>
             <button onclick="shuffleLibrary()">Shuffle</button>
             <button onclick="drawCard()">Draw</button>
@@ -39,15 +46,23 @@
 
             <!-- Shared battlefield - the table -->
             <div id="battlefield" data-zone="battlefield">
+                <div class="side-label opponent-side">Opponent's Side</div>
                 <div class="table-divider"></div>
+                <div class="side-label your-side">Your Side</div>
             </div>
 
-            <!-- Your play area -->
-            <div id="my-battlefield"></div>
+
         </div>
 
         <!-- Your zones at bottom -->
         <div id="zones">
+            <div id="command" class="zone hidden" data-zone="command">
+                <span class="zone-label">Command</span>
+                <div id="commander-prompt">
+                    <button onclick="showCommanderSelect()">Set Commander</button>
+                    <button onclick="hideCommandZone()" class="small">No Commander</button>
+                </div>
+            </div>
             <div id="library" class="zone" data-zone="library">
                 <span class="zone-label">Library</span>
             </div>
@@ -67,16 +82,106 @@
     <div id="deck-modal" class="modal hidden">
         <div class="modal-content">
             <h2>Load Deck</h2>
+            <div class="saved-decks-row">
+                <select id="saved-decks-select" onchange="loadSavedDeck()">
+                    <option value="">-- Saved Decks --</option>
+                </select>
+                <button onclick="deleteSavedDeck()">Delete</button>
+            </div>
             <textarea id="deck-input" placeholder="Paste your deck list here...
 1 Lightning Bolt
 4 Mountain
 2x Sol Ring
 1 Black Lotus (LEA)"></textarea>
+            <div class="save-deck-row">
+                <input type="text" id="deck-name-input" placeholder="Deck name...">
+                <button onclick="saveDeck()">Save Deck</button>
+            </div>
             <div class="modal-buttons">
                 <button onclick="loadDeck()">Load</button>
+                <button onclick="exportDeck()">Export</button>
                 <button onclick="hideDeckModal()">Cancel</button>
             </div>
             <div id="load-status"></div>
+        </div>
+    </div>
+
+    <!-- Card Preview -->
+    <div id="card-preview" class="hidden"></div>
+
+    <!-- Zone Viewer Modal -->
+    <div id="zone-modal" class="modal hidden">
+        <div class="modal-content zone-viewer">
+            <h2 id="zone-modal-title">Graveyard</h2>
+            <div id="zone-modal-cards"></div>
+            <div class="modal-buttons">
+                <button onclick="hideZoneModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Counter Modal -->
+    <div id="counter-modal" class="modal hidden">
+        <div class="modal-content counter-modal-content">
+            <h2>Add Counter</h2>
+            <input type="text" id="counter-name-input" placeholder="Counter name (e.g. Poison, Energy)">
+            <div class="modal-buttons">
+                <button onclick="confirmAddCounter()">Add</button>
+                <button onclick="hideCounterModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="hidden">
+        <input type="text" id="context-search" placeholder="Search actions..." autocomplete="off">
+        <div id="context-actions"></div>
+    </div>
+
+    <!-- Token Search Modal -->
+    <div id="token-modal" class="modal hidden">
+        <div class="modal-content token-modal-content">
+            <h2>Create Token</h2>
+            <input type="text" id="token-search-input" placeholder="Search tokens (e.g. Soldier, Treasure, Food)">
+            <div id="token-results"></div>
+            <div id="token-status"></div>
+            <div class="modal-buttons">
+                <button onclick="hideTokenModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commander Selection Modal -->
+    <div id="commander-modal" class="modal hidden">
+        <div class="modal-content commander-modal-content">
+            <h2>Select Commander(s)</h2>
+            <p class="modal-hint">Click cards from your library to set as commander. Click again to remove.</p>
+            <input type="text" id="commander-search-input" placeholder="Filter cards...">
+            <div id="commander-card-list"></div>
+            <div class="modal-buttons">
+                <button onclick="confirmCommanders()">Confirm</button>
+                <button onclick="hideCommanderModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Library Search Modal -->
+    <div id="library-search-modal" class="modal hidden">
+        <div class="modal-content library-search-modal-content">
+            <h2>Search Library</h2>
+            <input type="text" id="library-search-input" placeholder="Search cards...">
+            <div id="library-card-list"></div>
+            <div class="library-search-actions hidden" id="library-search-actions">
+                <span id="selected-card-name"></span>
+                <button onclick="librarySearchMoveTo('hand')">To Hand</button>
+                <button onclick="librarySearchMoveTo('battlefield')">To Battlefield</button>
+                <button onclick="librarySearchMoveTo('top')">To Top</button>
+                <button onclick="librarySearchMoveTo('bottom')">To Bottom</button>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="closeLibrarySearch(true)">Done (Shuffle)</button>
+                <button onclick="closeLibrarySearch(false)">Done</button>
+            </div>
         </div>
     </div>
 
