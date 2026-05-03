@@ -30,8 +30,11 @@ def generate_room_code():
 
 def make_game_state():
     return {
-        "cards": {},  # card_id -> {id, name, image, x, y, zone, tapped, face_down, owner, controller}
-        "players": {}  # player_id -> {name, deck_loaded}
+        "cards": {},
+        "players": {},
+        "turn_order": [],
+        "current_turn_index": 0,
+        "starting_life": 20
     }
 
 # Scryfall proxy
@@ -75,11 +78,19 @@ async def get_cards_collection(request: Request):
 
 # Room management
 @app.post("/api/room/create")
-async def create_room():
+async def create_room(request: Request):
+    try:
+        body = await request.json()
+        starting_life = int(body.get("starting_life", 20))
+    except Exception:
+        starting_life = 20
+    starting_life = max(1, min(starting_life, 999))
     code = generate_room_code()
     while code in rooms:
         code = generate_room_code()
-    rooms[code] = {"players": {}, "game_state": make_game_state()}
+    state = make_game_state()
+    state["starting_life"] = starting_life
+    rooms[code] = {"players": {}, "game_state": state}
     return {"code": code}
 
 @app.get("/api/room/{code}/exists")
@@ -101,7 +112,14 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
 
     player_id = ''.join(random.choices(string.ascii_lowercase, k=8))
     room["players"][websocket] = {"id": player_id, "name": player_name}
-    room["game_state"]["players"][player_id] = {"name": player_name, "deck_loaded": False, "life": 20, "counters": {}}
+    room["game_state"]["players"][player_id] = {
+        "name": player_name,
+        "deck_loaded": False,
+        "life": room["game_state"]["starting_life"],
+        "counters": {},
+        "commander_damage": {}
+    }
+    room["game_state"]["turn_order"].append(player_id)
 
     # Send current state to new player
     await websocket.send_json({
@@ -111,7 +129,13 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
     })
 
     # Notify others
-    await broadcast(room, {"type": "player_joined", "player_id": player_id, "name": player_name}, exclude=websocket)
+    await broadcast(room, {
+        "type": "player_joined",
+        "player_id": player_id,
+        "name": player_name,
+        "life": room["game_state"]["starting_life"],
+        "turn_order": room["game_state"]["turn_order"]
+    }, exclude=websocket)
 
     try:
         while True:
@@ -129,9 +153,17 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
             del room["players"][websocket]
         if player_id in room["game_state"]["players"]:
             del room["game_state"]["players"][player_id]
-        await broadcast(room, {"type": "player_left", "player_id": player_id})
-
-        # Clean up empty rooms
+        turn_order = room["game_state"]["turn_order"]
+        if player_id in turn_order:
+            turn_order.remove(player_id)
+            if turn_order and room["game_state"]["current_turn_index"] >= len(turn_order):
+                room["game_state"]["current_turn_index"] = 0
+        await broadcast(room, {
+            "type": "player_left",
+            "player_id": player_id,
+            "turn_order": list(turn_order),
+            "current_turn_index": room["game_state"]["current_turn_index"]
+        })
         if not room["players"] and room_code in rooms:
             del rooms[room_code]
 
@@ -242,6 +274,42 @@ async def handle_message(room, websocket, data):
                 "card_id": card_id,
                 "new_controller": new_controller,
                 "owner": state["cards"][card_id]["owner"]
+            })
+
+    elif msg_type == "pass_turn":
+        if state["turn_order"]:
+            new_idx = (state["current_turn_index"] + 1) % len(state["turn_order"])
+            state["current_turn_index"] = new_idx
+            active = state["turn_order"][new_idx]
+            await broadcast(room, {
+                "type": "turn_changed",
+                "active_player_id": active,
+                "current_turn_index": new_idx
+            })
+
+    elif msg_type == "set_commander_damage":
+        target_id = data.get("target_player_id")
+        source_id = data.get("source_player_id")
+        amount = max(0, int(data.get("amount", 0)))
+        if target_id in state["players"]:
+            if "commander_damage" not in state["players"][target_id]:
+                state["players"][target_id]["commander_damage"] = {}
+            state["players"][target_id]["commander_damage"][source_id] = amount
+            await broadcast(room, {
+                "type": "commander_damage_changed",
+                "target_player_id": target_id,
+                "source_player_id": source_id,
+                "amount": amount
+            })
+
+    elif msg_type == "chat":
+        text = str(data.get("text", "")).strip()[:200]
+        if text:
+            await broadcast(room, {
+                "type": "chat",
+                "player_id": player["id"],
+                "player_name": player["name"],
+                "text": text
             })
 
 # Serve frontend

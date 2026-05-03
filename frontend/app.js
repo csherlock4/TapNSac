@@ -31,8 +31,26 @@ const command = document.getElementById('command');
 const cardPreview = document.getElementById('card-preview');
 
 // Lobby functions
+function onStartingLifeChange() {
+    const val = document.getElementById('starting-life-select').value;
+    document.getElementById('starting-life-custom').classList.toggle('hidden', val !== 'custom');
+}
+
+function getStartingLife() {
+    const sel = document.getElementById('starting-life-select');
+    if (sel.value === 'custom') {
+        return Math.max(1, Math.min(999, parseInt(document.getElementById('starting-life-custom').value) || 20));
+    }
+    return parseInt(sel.value);
+}
+
 async function createRoom() {
-    const r = await fetch('/api/room/create', { method: 'POST' });
+    const startingLife = getStartingLife();
+    const r = await fetch('/api/room/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starting_life: startingLife })
+    });
     const data = await r.json();
     connectToRoom(data.code);
 }
@@ -83,18 +101,37 @@ function handleMessage(msg) {
             renderAllCards();
             updatePlayerCount();
             updateMyLife();
+            updateTurnUI();
+            renderCommanderDamage();
             break;
 
         case 'player_joined':
-            gameState.players[msg.player_id] = { name: msg.name, deck_loaded: false, life: 20, counters: {} };
+            gameState.players[msg.player_id] = {
+                name: msg.name,
+                deck_loaded: false,
+                life: msg.life ?? (gameState.starting_life || 20),
+                counters: {},
+                commander_damage: {}
+            };
+            if (msg.turn_order) gameState.turn_order = msg.turn_order;
             updatePlayerCount();
+            renderCommanderDamage();
+            addLogEntry(`${msg.name} joined`);
             break;
 
-        case 'player_left':
+        case 'player_left': {
+            const leavingName = gameState.players[msg.player_id]?.name || 'A player';
             delete gameState.players[msg.player_id];
+            if (msg.turn_order) {
+                gameState.turn_order = msg.turn_order;
+                gameState.current_turn_index = msg.current_turn_index;
+                updateTurnUI();
+            }
             updatePlayerCount();
-            // Remove their cards? or leave them? leaving for now
+            renderCommanderDamage();
+            addLogEntry(`${leavingName} left the game`);
             break;
+        }
 
         case 'cards_added':
             msg.cards.forEach(card => {
@@ -102,6 +139,10 @@ function handleMessage(msg) {
                 renderCard(card);
             });
             scheduleRenderOpponents();
+            if (msg.cards.length >= 10) {
+                const owner = gameState.players[msg.cards[0]?.owner];
+                if (owner) addLogEntry(`${owner.name} loaded their deck`);
+            }
             break;
 
         case 'card_moved':
@@ -143,15 +184,17 @@ function handleMessage(msg) {
             // Could show a notification
             break;
 
-        case 'life_changed':
-            if (gameState.players[msg.player_id]) {
-                gameState.players[msg.player_id].life = msg.life;
-                if (msg.player_id === playerId) {
-                    updateMyLife();
-                }
+        case 'life_changed': {
+            const lifePlr = gameState.players[msg.player_id];
+            if (lifePlr) {
+                const oldLife = lifePlr.life;
+                lifePlr.life = msg.life;
+                if (msg.player_id === playerId) updateMyLife();
                 scheduleRenderOpponents();
+                if (oldLife !== msg.life) addLogEntry(`${lifePlr.name}: ${oldLife} → ${msg.life} life`);
             }
             break;
+        }
 
         case 'player_counter_changed':
             if (gameState.players[msg.player_id]) {
@@ -178,6 +221,30 @@ function handleMessage(msg) {
                 scheduleRenderOpponents();
             }
             break;
+
+        case 'turn_changed': {
+            gameState.current_turn_index = msg.current_turn_index;
+            updateTurnUI();
+            scheduleRenderOpponents();
+            const newActiveName = gameState.players[msg.active_player_id]?.name;
+            if (newActiveName) addLogEntry(`${newActiveName}'s turn`);
+            break;
+        }
+
+        case 'commander_damage_changed':
+            if (gameState.players[msg.target_player_id]) {
+                if (!gameState.players[msg.target_player_id].commander_damage) {
+                    gameState.players[msg.target_player_id].commander_damage = {};
+                }
+                gameState.players[msg.target_player_id].commander_damage[msg.source_player_id] = msg.amount;
+                if (msg.target_player_id === playerId) renderCommanderDamage();
+                scheduleRenderOpponents();
+            }
+            break;
+
+        case 'chat':
+            appendChatMessage(msg.player_name, msg.text, msg.player_id === playerId);
+            break;
     }
 }
 
@@ -197,9 +264,17 @@ function scheduleRenderOpponents() {
     });
 }
 
+function getActiveTurnPlayerId() {
+    const order = gameState.turn_order || [];
+    const idx = gameState.current_turn_index || 0;
+    return order.length > 0 ? order[idx % order.length] : null;
+}
+
 function renderOpponents() {
     const container = document.getElementById('opponent-battlefields');
     container.innerHTML = '';
+
+    const activeId = getActiveTurnPlayerId();
 
     Object.entries(gameState.players).forEach(([pid, player]) => {
         if (pid === playerId) return;
@@ -221,8 +296,9 @@ function renderOpponents() {
 
         const el = document.createElement('div');
         el.className = 'opponent-info';
+        if (pid === activeId) el.classList.add('active-turn');
 
-        // Add commander elements with hover preview
+        // Commander images with hover preview
         commanders.forEach(c => {
             const cmdEl = document.createElement('div');
             cmdEl.className = 'opponent-commander';
@@ -236,11 +312,15 @@ function renderOpponents() {
             el.appendChild(cmdEl);
         });
 
+        // Commander damage I dealt to this opponent
+        const cmdDmgDealt = player.commander_damage?.[playerId] || 0;
+        const cmdDmgText = commanders.length > 0 ? ` | Cmd dealt: ${cmdDmgDealt}` : '';
+
         const infoHtml = document.createElement('div');
         infoHtml.className = 'opponent-info-text';
         infoHtml.innerHTML = `
-            <span class="name">${esc(player.name)}</span>
-            <span class="stats">Hand: ${handCount} | Library: ${libraryCount}</span>
+            <span class="name">${esc(player.name)}${pid === activeId ? ' <span class="turn-badge">TURN</span>' : ''}</span>
+            <span class="stats">Hand: ${handCount} | Library: ${libraryCount}${cmdDmgText}</span>
             <div class="opponent-counters">${countersHtml}</div>
         `;
         el.appendChild(infoHtml);
@@ -269,6 +349,118 @@ function adjustLife(delta) {
     updateMyLife();
 
     ws.send(JSON.stringify({ type: 'set_life', life: newLife }));
+}
+
+// Turn order
+function passTurn() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'pass_turn' }));
+    }
+}
+
+function updateTurnUI() {
+    const activeId = getActiveTurnPlayerId();
+    const isMyTurn = activeId === playerId;
+    const indicator = document.getElementById('turn-indicator');
+    const topBar = document.getElementById('top-bar');
+    if (indicator) indicator.classList.toggle('hidden', !isMyTurn);
+    if (topBar) topBar.classList.toggle('my-turn', isMyTurn);
+}
+
+// Commander damage
+function renderCommanderDamage() {
+    const container = document.getElementById('commander-damage');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const myPlayer = gameState.players[playerId];
+    if (!myPlayer) return;
+
+    const opponents = Object.entries(gameState.players).filter(([pid]) => pid !== playerId);
+    if (opponents.length === 0) return;
+
+    opponents.forEach(([pid, opponent]) => {
+        const damage = myPlayer.commander_damage?.[pid] || 0;
+        const chip = document.createElement('div');
+        chip.className = 'cmd-damage-chip';
+        if (damage >= 21) chip.classList.add('lethal');
+        else if (damage >= 15) chip.classList.add('warning');
+        chip.title = `Commander damage from ${opponent.name}. Click +1, Shift+Click -1`;
+        chip.innerHTML = `<span class="cmd-dmg-name">${esc(opponent.name)}</span><span class="cmd-dmg-val">${damage}</span>`;
+        chip.addEventListener('click', (e) => adjustCommanderDamage(pid, e.shiftKey ? -1 : 1));
+        container.appendChild(chip);
+    });
+}
+
+function adjustCommanderDamage(sourcePlayerId, delta) {
+    const myPlayer = gameState.players[playerId];
+    if (!myPlayer) return;
+    if (!myPlayer.commander_damage) myPlayer.commander_damage = {};
+    const current = myPlayer.commander_damage[sourcePlayerId] || 0;
+    const newAmount = Math.max(0, current + delta);
+    myPlayer.commander_damage[sourcePlayerId] = newAmount;
+    renderCommanderDamage();
+    ws.send(JSON.stringify({
+        type: 'set_commander_damage',
+        target_player_id: playerId,
+        source_player_id: sourcePlayerId,
+        amount: newAmount
+    }));
+}
+
+// Chat / Log panel
+let chatPanelOpen = false;
+let activeChatTab = 'chat';
+
+function toggleChatPanel() {
+    chatPanelOpen = !chatPanelOpen;
+    const panel = document.getElementById('chat-panel');
+    const toggleBtn = document.getElementById('chat-toggle-btn');
+    panel.classList.toggle('hidden', !chatPanelOpen);
+    if (toggleBtn) toggleBtn.textContent = chatPanelOpen ? 'Hide Chat' : 'Chat';
+    document.body.classList.toggle('chat-open', chatPanelOpen);
+}
+
+function switchChatTab(tab) {
+    activeChatTab = tab;
+    document.getElementById('chat-messages').classList.toggle('hidden', tab !== 'chat');
+    document.getElementById('log-messages').classList.toggle('hidden', tab !== 'log');
+    document.querySelectorAll('.chat-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === tab);
+    });
+}
+
+function sendChat() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'chat', text }));
+    input.value = '';
+}
+
+function appendChatMessage(playerName, text, isSelf) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'chat-message' + (isSelf ? ' self' : '');
+    el.innerHTML = `<span class="chat-name">${esc(playerName)}</span><span class="chat-text">${esc(text)}</span>`;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+    // If panel closed, briefly highlight toggle button
+    if (!chatPanelOpen) {
+        const btn = document.getElementById('chat-toggle-btn');
+        if (btn) { btn.classList.add('chat-unread'); setTimeout(() => btn.classList.remove('chat-unread'), 3000); }
+    }
+}
+
+function addLogEntry(text) {
+    const container = document.getElementById('log-messages');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'log-entry';
+    el.textContent = text;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
 }
 
 // Counter system
@@ -1808,4 +2000,10 @@ library.addEventListener('click', (e) => {
     if (e.target === library || e.target.classList.contains('library-count')) {
         openLibrarySearch();
     }
+});
+
+// Chat input
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendChat();
+    if (e.key === 'Escape') toggleChatPanel();
 });

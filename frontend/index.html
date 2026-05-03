@@ -12,6 +12,15 @@
         <h1>Tap N Sac</h1>
         <div class="lobby-box">
             <input type="text" id="player-name" placeholder="Your name" value="Player">
+            <div class="lobby-life-row">
+                <label for="starting-life-select">Starting Life</label>
+                <select id="starting-life-select" onchange="onStartingLifeChange()">
+                    <option value="20">20 — Standard</option>
+                    <option value="40">40 — Commander</option>
+                    <option value="custom">Custom...</option>
+                </select>
+                <input type="number" id="starting-life-custom" value="20" min="1" max="999" class="hidden">
+            </div>
             <div class="lobby-buttons">
                 <button onclick="createRoom()">Create Room</button>
                 <div class="join-row">
@@ -27,10 +36,14 @@
         <div id="top-bar">
             <span id="room-display">Room: ----</span>
             <span id="players-display">Players: 0</span>
-            <div id="life-total">
-                <button onclick="adjustLife(-1)">-</button>
-                <span id="my-life">20</span>
-                <button onclick="adjustLife(1)">+</button>
+            <div id="turn-indicator" class="hidden">YOUR TURN</div>
+            <div id="life-area">
+                <div id="life-total">
+                    <button onclick="adjustLife(-1)">-</button>
+                    <span id="my-life">20</span>
+                    <button onclick="adjustLife(1)">+</button>
+                </div>
+                <div id="commander-damage"></div>
             </div>
             <div id="player-counters"></div>
             <button onclick="showAddCounterModal('player')">+ Counter</button>
@@ -38,6 +51,8 @@
             <button onclick="shuffleLibrary()">Shuffle</button>
             <button onclick="drawCard()">Draw</button>
             <button onclick="untapAll()">Untap All</button>
+            <button onclick="passTurn()">Pass Turn</button>
+            <button onclick="toggleChatPanel()" id="chat-toggle-btn">Chat</button>
         </div>
 
         <div id="table-area">
@@ -182,6 +197,21 @@
                 <button onclick="closeLibrarySearch(true)">Done (Shuffle)</button>
                 <button onclick="closeLibrarySearch(false)">Done</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Chat / Log Panel -->
+    <div id="chat-panel" class="hidden">
+        <div id="chat-panel-header">
+            <button class="chat-tab active" data-tab="chat" onclick="switchChatTab('chat')">Chat</button>
+            <button class="chat-tab" data-tab="log" onclick="switchChatTab('log')">Log</button>
+            <button id="chat-close-btn" onclick="toggleChatPanel()">X</button>
+        </div>
+        <div id="chat-messages"></div>
+        <div id="log-messages" class="hidden"></div>
+        <div id="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Message..." maxlength="200" autocomplete="off">
+            <button onclick="sendChat()">Send</button>
         </div>
     </div>
 

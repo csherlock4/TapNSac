@@ -585,14 +585,17 @@ button:hover {
 }
 
 #opponent-battlefields {
-    height: 30%;
+    height: 35%;
     background: linear-gradient(to bottom, #1a0a2e 0%, #0d0d1a 100%);
     border-bottom: 1px solid #4a2c7a;
     position: relative;
-    display: flex;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 0.5rem;
     padding: 0.5rem;
-    overflow-x: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .opponent-zone-mini {
@@ -842,11 +845,17 @@ button:hover {
     background: linear-gradient(135deg, #1a0a2e 0%, #0d1a15 100%);
     border: 1px solid #4a2c7a;
     border-radius: 4px;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    min-width: 150px;
+    gap: 0.75rem;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.opponent-info.active-turn {
+    border-color: #00ff88;
+    box-shadow: 0 0 12px #00ff8844;
 }
 
 .opponent-info .name {
@@ -1195,4 +1204,284 @@ button:hover {
     color: #9b4dca;
     font-size: 0.85rem;
     min-height: 1.2em;
+}
+
+/* Lobby life selector */
+.lobby-life-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.lobby-life-row label {
+    font-size: 0.85rem;
+    color: #9b4dca;
+    white-space: nowrap;
+}
+
+.lobby-life-row select {
+    flex: 1;
+    padding: 0.5rem;
+    background: #0a0a12;
+    border: 1px solid #4a2c7a;
+    border-radius: 2px;
+    color: #e0b0ff;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.9rem;
+}
+
+.lobby-life-row input[type="number"] {
+    width: 70px;
+    padding: 0.5rem;
+    background: #0a0a12;
+    border: 1px solid #2d6b4f;
+    border-radius: 2px;
+    color: #00ff88;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.9rem;
+}
+
+/* Turn indicator */
+#turn-indicator {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #00ff88;
+    border: 1px solid #00ff88;
+    border-radius: 3px;
+    padding: 0.25rem 0.5rem;
+    animation: pulse-turn 1.5s ease-in-out infinite;
+    white-space: nowrap;
+}
+
+@keyframes pulse-turn {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px #00ff8866; }
+    50% { opacity: 0.7; box-shadow: none; }
+}
+
+#top-bar.my-turn {
+    border-bottom-color: #00ff88;
+    box-shadow: 0 2px 20px #00ff8833;
+}
+
+.turn-badge {
+    font-size: 0.65rem;
+    background: #00ff88;
+    color: #000;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    vertical-align: middle;
+}
+
+/* Life area (life total + commander damage) */
+#life-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+/* Commander damage chips */
+#commander-damage {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.cmd-damage-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #1a0a2e;
+    border: 1px solid #4a2c7a;
+    border-radius: 3px;
+    padding: 1px 5px;
+    cursor: pointer;
+    font-size: 0.65rem;
+    transition: border-color 0.15s;
+}
+
+.cmd-damage-chip:hover {
+    border-color: #bf6fff;
+}
+
+.cmd-damage-chip.warning {
+    border-color: #ff9900;
+    box-shadow: 0 0 6px #ff990066;
+}
+
+.cmd-damage-chip.lethal {
+    border-color: #ff4444;
+    box-shadow: 0 0 8px #ff444488;
+    animation: pulse-turn 1s ease-in-out infinite;
+}
+
+.cmd-dmg-name {
+    color: #9b4dca;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cmd-dmg-val {
+    font-weight: bold;
+    color: #e0b0ff;
+    min-width: 16px;
+    text-align: right;
+}
+
+/* Opponent stats text truncation in grid */
+.opponent-info .stats {
+    font-size: 0.72rem;
+    color: #4a8866;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.opponent-info .name {
+    font-weight: bold;
+    font-size: 0.88rem;
+    color: #e0b0ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Chat / Log Panel */
+#chat-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 260px;
+    height: 100vh;
+    background: linear-gradient(180deg, #1a0a2e 0%, #0d1a15 100%);
+    border-left: 2px solid #4a2c7a;
+    display: flex;
+    flex-direction: column;
+    z-index: 4000;
+    box-shadow: -4px 0 20px #00000088;
+}
+
+#chat-panel-header {
+    display: flex;
+    border-bottom: 1px solid #4a2c7a;
+    padding: 0.25rem;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+.chat-tab {
+    flex: 1;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+    background: transparent;
+    border: 1px solid #4a2c7a;
+    color: #9b4dca;
+}
+
+.chat-tab.active {
+    background: linear-gradient(180deg, #4a2c7a 0%, #2d1b4e 100%);
+    color: #e0b0ff;
+    border-color: #9b4dca;
+}
+
+#chat-close-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.75rem;
+    background: transparent;
+    border: 1px solid #4a2c7a;
+    color: #9b4dca;
+    flex-shrink: 0;
+}
+
+#chat-messages, #log-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.chat-message {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 3px;
+    background: #0d0d1a;
+    border: 1px solid #2d1b4e;
+    word-break: break-word;
+}
+
+.chat-message.self {
+    background: #1a0a2e;
+    border-color: #4a2c7a;
+}
+
+.chat-name {
+    font-size: 0.7rem;
+    color: #9b4dca;
+    font-weight: bold;
+}
+
+.chat-message.self .chat-name {
+    color: #00ff88;
+}
+
+.chat-text {
+    font-size: 0.8rem;
+    color: #c0ffc0;
+}
+
+.log-entry {
+    font-size: 0.72rem;
+    color: #4a8866;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid #1a1a2e;
+}
+
+#chat-input-row {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-top: 1px solid #4a2c7a;
+    flex-shrink: 0;
+}
+
+#chat-input {
+    flex: 1;
+    padding: 0.4rem;
+    background: #0a0a12;
+    border: 1px solid #2d6b4f;
+    border-radius: 2px;
+    color: #00ff88;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.8rem;
+}
+
+#chat-input:focus {
+    outline: none;
+    border-color: #00ff88;
+}
+
+#chat-input-row button {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+}
+
+/* Shift card preview when chat panel is open */
+body.chat-open #card-preview {
+    right: 280px;
+}
+
+/* Chat unread notification on toggle button */
+#chat-toggle-btn.chat-unread {
+    border-color: #00ff88;
+    color: #00ff88;
+    box-shadow: 0 0 10px #00ff8844;
 }
