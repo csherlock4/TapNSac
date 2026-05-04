@@ -64,9 +64,14 @@ async def get_cards_collection(request: Request):
     results = {}
     for i in range(0, len(identifiers), 75):
         batch = identifiers[i:i+75]
+        # Scryfall collection endpoint only matches DFCs by front-face name
+        normalized = [
+            {"name": item["name"].split(" // ")[0]} if " // " in item.get("name", "") else item
+            for item in batch
+        ]
         r = await http.post(
             "https://api.scryfall.com/cards/collection",
-            json={"identifiers": batch}
+            json={"identifiers": normalized}
         )
         data = r.json()
         for card in data.get("data", []):

@@ -46,18 +46,20 @@
                 <div id="commander-damage"></div>
             </div>
             <div id="player-counters"></div>
-            <button onclick="showAddCounterModal('player')">+ Counter</button>
-            <button onclick="showDeckModal()">Load Deck</button>
-            <button onclick="shuffleLibrary()">Shuffle</button>
-            <button onclick="drawCard()">Draw</button>
-            <button onclick="untapAll()">Untap All</button>
-            <button onclick="passTurn()">Pass Turn</button>
-            <button onclick="toggleChatPanel()" id="chat-toggle-btn">Chat</button>
+            <div id="action-group">
+                <button onclick="drawCard()">Draw</button>
+                <button onclick="untapAll()">Untap</button>
+                <button onclick="passTurn()">Pass</button>
+                <button onclick="showDeckModal()">Deck</button>
+                <button onclick="shuffleLibrary()">Shuffle</button>
+                <button onclick="showAddCounterModal('player')">+Ctr</button>
+                <button onclick="toggleChatPanel()" id="chat-toggle-btn">Chat</button>
+            </div>
         </div>
 
         <div id="table-area">
-            <!-- Opponents' battlefield halves at top -->
-            <div id="opponent-battlefields"></div>
+            <div id="opp-top" class="opponent-strip"></div>
+            <div id="opp-left" class="opponent-strip"></div>
 
             <!-- Shared battlefield - the table -->
             <div id="battlefield" data-zone="battlefield">
@@ -66,7 +68,7 @@
                 <div class="side-label your-side">Your Side</div>
             </div>
 
-
+            <div id="opp-right" class="opponent-strip"></div>
         </div>
 
         <!-- Your zones at bottom -->

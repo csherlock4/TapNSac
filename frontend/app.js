@@ -271,34 +271,46 @@ function getActiveTurnPlayerId() {
 }
 
 function renderOpponents() {
-    const container = document.getElementById('opponent-battlefields');
-    container.innerHTML = '';
+    const tableArea  = document.getElementById('table-area');
+    const topSlot    = document.getElementById('opp-top');
+    const leftSlot   = document.getElementById('opp-left');
+    const rightSlot  = document.getElementById('opp-right');
 
-    const activeId = getActiveTurnPlayerId();
+    topSlot.innerHTML   = '';
+    leftSlot.innerHTML  = '';
+    rightSlot.innerHTML = '';
+    tableArea.classList.remove('has-top', 'has-left', 'has-right');
 
-    Object.entries(gameState.players).forEach(([pid, player]) => {
-        if (pid === playerId) return;
+    const activeId  = getActiveTurnPlayerId();
+    const opponents = Object.entries(gameState.players).filter(([pid]) => pid !== playerId);
+    if (!opponents.length) return;
 
-        const handCount = Object.values(gameState.cards)
-            .filter(c => c.owner === pid && c.zone === 'hand').length;
-        const libraryCount = Object.values(gameState.cards)
-            .filter(c => c.owner === pid && c.zone === 'library').length;
-        const commanders = Object.values(gameState.cards)
-            .filter(c => c.owner === pid && c.zone === 'command');
-        const life = player.life ?? 20;
+    // Assign positions: 1→left, 2→left+right, 3→top+left+right, 4+→top(2)+left+right
+    let top = [], left = [], right = [];
+    if (opponents.length === 1) {
+        left = opponents;
+    } else if (opponents.length === 2) {
+        left  = [opponents[0]];
+        right = [opponents[1]];
+    } else if (opponents.length === 3) {
+        top   = [opponents[0]];
+        left  = [opponents[1]];
+        right = [opponents[2]];
+    } else {
+        top   = opponents.slice(0, 2);
+        left  = [opponents[2]];
+        right = opponents.slice(3);
+    }
 
-        let countersHtml = '';
-        if (player.counters && Object.keys(player.counters).length > 0) {
-            countersHtml = Object.entries(player.counters)
-                .map(([name, val]) => `<span class="opponent-counter">${esc(name)}: ${val}</span>`)
-                .join('');
-        }
+    function buildCard(pid, player) {
+        const handCount  = Object.values(gameState.cards).filter(c => c.owner === pid && c.zone === 'hand').length;
+        const libCount   = Object.values(gameState.cards).filter(c => c.owner === pid && c.zone === 'library').length;
+        const commanders = Object.values(gameState.cards).filter(c => c.owner === pid && c.zone === 'command');
 
         const el = document.createElement('div');
-        el.className = 'opponent-info';
+        el.className = 'opponent-info-compact';
         if (pid === activeId) el.classList.add('active-turn');
 
-        // Commander images with hover preview
         commanders.forEach(c => {
             const cmdEl = document.createElement('div');
             cmdEl.className = 'opponent-commander';
@@ -312,26 +324,35 @@ function renderOpponents() {
             el.appendChild(cmdEl);
         });
 
-        // Commander damage I dealt to this opponent
-        const cmdDmgDealt = player.commander_damage?.[playerId] || 0;
-        const cmdDmgText = commanders.length > 0 ? ` | Cmd dealt: ${cmdDmgDealt}` : '';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'opp-name';
+        nameEl.textContent = player.name + (pid === activeId ? ' ▶' : '');
+        el.appendChild(nameEl);
 
-        const infoHtml = document.createElement('div');
-        infoHtml.className = 'opponent-info-text';
-        infoHtml.innerHTML = `
-            <span class="name">${esc(player.name)}${pid === activeId ? ' <span class="turn-badge">TURN</span>' : ''}</span>
-            <span class="stats">Hand: ${handCount} | Library: ${libraryCount}${cmdDmgText}</span>
-            <div class="opponent-counters">${countersHtml}</div>
-        `;
-        el.appendChild(infoHtml);
-
-        const lifeEl = document.createElement('span');
-        lifeEl.className = 'opponent-life';
-        lifeEl.textContent = life;
+        const lifeEl = document.createElement('div');
+        lifeEl.className = 'opp-life';
+        lifeEl.textContent = player.life ?? 20;
         el.appendChild(lifeEl);
 
-        container.appendChild(el);
-    });
+        const cmdDmg = player.commander_damage?.[playerId] || 0;
+        const statsEl = document.createElement('div');
+        statsEl.className = 'opp-stats';
+        statsEl.textContent = `H:${handCount} L:${libCount}` + (commanders.length ? ` C:${cmdDmg}` : '');
+        el.appendChild(statsEl);
+
+        if (player.counters && Object.keys(player.counters).length) {
+            const ctrEl = document.createElement('div');
+            ctrEl.className = 'opp-counters';
+            ctrEl.innerHTML = Object.entries(player.counters)
+                .map(([n, v]) => `<span class="opponent-counter">${esc(n)}:${v}</span>`).join('');
+            el.appendChild(ctrEl);
+        }
+        return el;
+    }
+
+    if (top.length)   { tableArea.classList.add('has-top');   top.forEach(([pid, p])   => topSlot.appendChild(buildCard(pid, p))); }
+    if (left.length)  { tableArea.classList.add('has-left');  left.forEach(([pid, p])  => leftSlot.appendChild(buildCard(pid, p))); }
+    if (right.length) { tableArea.classList.add('has-right'); right.forEach(([pid, p]) => rightSlot.appendChild(buildCard(pid, p))); }
 }
 
 function updateMyLife() {

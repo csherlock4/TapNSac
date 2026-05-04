@@ -113,15 +113,26 @@ button:hover {
 
 #top-bar {
     display: flex;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
     background: linear-gradient(90deg, #1a0a2e 0%, #0d1a15 50%, #1a0a2e 100%);
     border-bottom: 2px solid #4a2c7a;
     align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
 }
 
-#top-bar span {
-    margin-right: auto;
+#action-group {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+#action-group button {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+    letter-spacing: 0;
 }
 
 #top-bar button {
@@ -579,42 +590,167 @@ button:hover {
 /* Table area */
 #table-area {
     flex: 1;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    grid-template-areas: "battlefield";
     min-height: 0;
 }
 
-#opponent-battlefields {
-    height: 35%;
-    background: linear-gradient(to bottom, #1a0a2e 0%, #0d0d1a 100%);
-    border-bottom: 1px solid #4a2c7a;
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    grid-auto-rows: 1fr;
+#table-area.has-left {
+    grid-template-columns: 160px 1fr;
+    grid-template-areas: "opp-left battlefield";
+}
+
+#table-area.has-right {
+    grid-template-columns: 1fr 160px;
+    grid-template-areas: "battlefield opp-right";
+}
+
+#table-area.has-left.has-right {
+    grid-template-columns: 160px 1fr 160px;
+    grid-template-areas: "opp-left battlefield opp-right";
+}
+
+#table-area.has-top {
+    grid-template-rows: 80px 1fr;
+}
+
+#table-area.has-top:not(.has-left):not(.has-right) {
+    grid-template-areas: "opp-top" "battlefield";
+}
+
+#table-area.has-top.has-left:not(.has-right) {
+    grid-template-areas: "opp-top opp-top" "opp-left battlefield";
+}
+
+#table-area.has-top.has-right:not(.has-left) {
+    grid-template-areas: "opp-top opp-top" "battlefield opp-right";
+}
+
+#table-area.has-top.has-left.has-right {
+    grid-template-areas:
+        "opp-top   opp-top     opp-top"
+        "opp-left  battlefield opp-right";
+}
+
+/* Opponent strips */
+#opp-top {
+    grid-area: opp-top;
+    display: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    background: linear-gradient(to bottom, #1a0a2e, #0d0d1a);
+    border-bottom: 1px solid #4a2c7a;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#opp-left {
+    grid-area: opp-left;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    background: linear-gradient(90deg, #1a0a2e, #0d0d1a);
+    border-right: 1px solid #4a2c7a;
     overflow-y: auto;
     overflow-x: hidden;
 }
 
-.opponent-zone-mini {
-    background: linear-gradient(135deg, #1a0a2e 0%, #0d1a15 100%);
-    border: 1px solid #4a2c7a;
-    border-radius: 4px;
-    padding: 0.5rem;
-    min-width: 200px;
-    position: relative;
+#opp-right {
+    grid-area: opp-right;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    background: linear-gradient(270deg, #1a0a2e, #0d0d1a);
+    border-left: 1px solid #4a2c7a;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
-.opponent-zone-mini .zone-label {
-    font-size: 0.65rem;
-    color: #9b4dca;
+#table-area.has-top    #opp-top   { display: flex; }
+#table-area.has-left   #opp-left  { display: flex; }
+#table-area.has-right  #opp-right { display: flex; }
+
+/* Compact opponent card */
+.opponent-info-compact {
+    background: linear-gradient(135deg, #1a0a2e, #0d1a15);
+    border: 1px solid #4a2c7a;
+    border-radius: 4px;
+    padding: 0.4rem 0.3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    width: 144px;
+    overflow: hidden;
+    flex-shrink: 0;
 }
+
+.opponent-info-compact.active-turn {
+    border-color: #00ff88;
+    box-shadow: 0 0 10px #00ff8844;
+}
+
+.opponent-info-compact .opp-name {
+    font-size: 0.72rem;
+    color: #e0b0ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.opponent-info-compact .opp-life {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #00ff88;
+    text-shadow: 0 0 12px #00ff8866;
+    line-height: 1.1;
+}
+
+.opponent-info-compact .opp-stats {
+    font-size: 0.58rem;
+    color: #4a8866;
+    text-align: center;
+}
+
+.opponent-info-compact .opp-counters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+}
+
+/* Top strip: horizontal variant */
+#opp-top .opponent-info-compact {
+    flex-direction: row;
+    width: auto;
+    min-width: 200px;
+    max-width: 340px;
+    height: 68px;
+    padding: 0.4rem 0.6rem;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+#opp-top .opponent-info-compact .opp-life { font-size: 1.4rem; }
+#opp-top .opponent-info-compact .opp-name { text-align: left; min-width: 60px; max-width: 100px; }
+#opp-top .opponent-info-compact .opponent-commander { width: 34px; height: 47px; }
 
 /* Battlefield - shared play area */
 #battlefield {
-    flex: 1;
+    grid-area: battlefield;
+    min-height: 0;
     background:
         linear-gradient(to bottom,
             rgba(155, 77, 202, 0.12) 0%,
@@ -639,7 +775,6 @@ button:hover {
         radial-gradient(ellipse at center, #0d1a15 0%, #0a0a12 50%, #0d0d1a 100%);
     position: relative;
     overflow: hidden;
-    min-height: 300px;
     border-left: 2px solid #2d6b4f;
     border-right: 2px solid #2d6b4f;
 }
@@ -1484,4 +1619,31 @@ body.chat-open #card-preview {
     border-color: #00ff88;
     color: #00ff88;
     box-shadow: 0 0 10px #00ff8844;
+}
+
+/* Mobile portrait: collapse side strips to life-only */
+@media (max-width: 600px) {
+    #table-area.has-left,
+    #table-area.has-right,
+    #table-area.has-left.has-right {
+        grid-template-columns: 40px 1fr 40px;
+    }
+    #table-area.has-left:not(.has-right) {
+        grid-template-columns: 40px 1fr;
+    }
+    #table-area.has-right:not(.has-left) {
+        grid-template-columns: 1fr 40px;
+    }
+    .opponent-info-compact {
+        width: 36px;
+        padding: 0.2rem;
+    }
+    .opponent-info-compact .opp-name,
+    .opponent-info-compact .opp-stats,
+    .opponent-info-compact .opp-counters,
+    .opponent-info-compact .opponent-commander { display: none; }
+    .opponent-info-compact .opp-life {
+        font-size: 0.85rem;
+        writing-mode: vertical-rl;
+    }
 }
