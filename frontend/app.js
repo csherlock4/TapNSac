@@ -6,6 +6,13 @@ let gameState = { cards: {}, players: {} };
 const cardElements = new Map(); // Store card elements so we can find them even when not in DOM
 let hoveredCardId = null; // Track currently hovered card for keyboard shortcuts
 
+// Tabbed opponent view: only one opponent's battlefield is visible at a time.
+// activeOppId is the pid of the focused opponent (or null when there are no opponents).
+let activeOppId = null;
+const OPP_CARD_W = 70;
+const OPP_CARD_H = 100;
+const OPP_TOP_FRACTION = 0.5;
+
 function esc(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -98,6 +105,7 @@ function handleMessage(msg) {
         case 'init':
             playerId = msg.player_id;
             gameState = msg.state;
+            ensureValidActiveOpp();   // pick default tab BEFORE rendering opp cards (avoids 1-frame flash)
             renderAllCards();
             updatePlayerCount();
             updateMyLife();
@@ -283,6 +291,12 @@ function renderOpponents() {
 
     const activeId  = getActiveTurnPlayerId();
     const opponents = Object.entries(gameState.players).filter(([pid]) => pid !== playerId);
+
+    // Refresh tab bar + ensure activeOppId is valid for the current opp set.
+    ensureValidActiveOpp();
+    renderOppTabs();
+    applyOppCardVisibility();
+
     if (!opponents.length) return;
 
     // Assign positions: 1→left, 2→left+right, 3→top+left+right, 4+→top(2)+left+right
@@ -353,6 +367,59 @@ function renderOpponents() {
     if (top.length)   { tableArea.classList.add('has-top');   top.forEach(([pid, p])   => topSlot.appendChild(buildCard(pid, p))); }
     if (left.length)  { tableArea.classList.add('has-left');  left.forEach(([pid, p])  => leftSlot.appendChild(buildCard(pid, p))); }
     if (right.length) { tableArea.classList.add('has-right'); right.forEach(([pid, p]) => rightSlot.appendChild(buildCard(pid, p))); }
+}
+
+function getOppOrder() {
+    const fromTurn = (gameState.turn_order || []).filter(pid => pid !== playerId && gameState.players[pid]);
+    if (fromTurn.length) return fromTurn;
+    return Object.keys(gameState.players).filter(pid => pid !== playerId);
+}
+
+function ensureValidActiveOpp() {
+    const order = getOppOrder();
+    if (!order.length) { activeOppId = null; return; }
+    if (!activeOppId || !order.includes(activeOppId)) activeOppId = order[0];
+}
+
+function renderOppTabs() {
+    const bar = document.getElementById('opp-tab-bar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    const order = getOppOrder();
+    if (order.length <= 1) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    order.forEach(pid => {
+        const p = gameState.players[pid];
+        if (!p) return;
+        const btn = document.createElement('button');
+        btn.className = 'opp-tab' + (pid === activeOppId ? ' active' : '');
+        btn.dataset.pid = pid;
+        btn.textContent = `${p.name}  ❤${p.life ?? 20}`;
+        btn.addEventListener('click', () => setActiveOpp(pid));
+        bar.appendChild(btn);
+    });
+}
+
+function applyOppCardVisibility() {
+    Object.values(gameState.cards).forEach(c => {
+        if (c.zone !== 'battlefield') return;
+        if (isControlledByMe(c)) return;
+        const el = cardElements.get(c.id);
+        if (!el) return;
+        el.style.display = (getController(c) === activeOppId) ? '' : 'none';
+    });
+}
+
+function setActiveOpp(pid) {
+    if (pid === activeOppId) return;
+    activeOppId = pid;
+    applyOppCardVisibility();
+    renderOppTabs();
+    const sideLabel = document.querySelector('.side-label.opponent-side');
+    if (sideLabel) {
+        const name = activeOppId ? (gameState.players[activeOppId]?.name || '') : '';
+        sideLabel.textContent = name ? `${name}'s Side` : "Opponent's Side";
+    }
 }
 
 function updateMyLife() {
@@ -954,18 +1021,26 @@ function updateCardPosition(cardId, el) {
 
     if (zone === 'battlefield') {
         const bfRect = battlefield.getBoundingClientRect();
-        const pixelX = card.x * bfRect.width;
-        const pixelY = card.y * bfRect.height;
 
         if (isControlled) {
+            const pixelX = card.x * bfRect.width;
+            const pixelY = card.y * bfRect.height;
             el.style.left = pixelX + 'px';
             el.style.top = pixelY + 'px';
             el.classList.remove('opponent-card');
+            el.style.display = '';
         } else {
-            const flippedY = bfRect.height - pixelY - 100;
-            el.style.left = pixelX + 'px';
-            el.style.top = flippedY + 'px';
+            // Project opponent's full 0..1 play area into the top half at full width.
+            // Visibility is gated by activeOppId so only the focused opp's cards show.
+            const cx = Math.max(0, Math.min(1, card.x));
+            const cy = Math.max(0, Math.min(1, card.y));
+            const topH = bfRect.height * OPP_TOP_FRACTION;
+            const px = cx * Math.max(0, bfRect.width - OPP_CARD_W);
+            const py = (1 - cy) * Math.max(0, topH - OPP_CARD_H);
+            el.style.left = px + 'px';
+            el.style.top  = py + 'px';
             el.classList.add('opponent-card');
+            el.style.display = (getController(card) === activeOppId) ? '' : 'none';
         }
         el.classList.remove('card-in-hand', 'card-in-zone');
         if (el.parentElement !== battlefield) {
@@ -975,6 +1050,7 @@ function updateCardPosition(cardId, el) {
     } else {
         el.style.left = '';
         el.style.top = '';
+        el.style.display = '';
         const isZone = zone !== 'hand';
         el.classList.toggle('card-in-hand', !isZone);
         el.classList.toggle('card-in-zone', isZone);

@@ -852,6 +852,8 @@ button:hover {
     transform: rotate(90deg) scale(1.1);
 }
 
+/* Opponent cards are full size, rotated 180deg, with only one opponent's
+   battlefield visible at a time (selected via the #opp-tab-bar). */
 .card.opponent-card {
     transform: rotate(180deg);
 }
@@ -866,6 +868,37 @@ button:hover {
 
 .card.opponent-card.tapped:hover {
     transform: rotate(270deg) scale(1.1);
+}
+
+/* Tab bar above the table: one button per opponent. Click to swap which
+   opponent's battlefield is shown. */
+#opp-tab-bar {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    background: linear-gradient(to bottom, #1a0a2e, #0d0d1a);
+    border-bottom: 1px solid #4a2c7a;
+    flex-shrink: 0;
+}
+
+.opp-tab {
+    background: #1a0a2e;
+    border: 1px solid #4a2c7a;
+    color: #c0ffc0;
+    padding: 0.3rem 0.8rem;
+    font-family: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+}
+
+.opp-tab:hover { border-color: #9b4dca; }
+
+.opp-tab.active {
+    border-color: #00ff88;
+    background: #0d1a15;
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
 }
 
 .card.face-down {
