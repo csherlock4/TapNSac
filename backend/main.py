@@ -34,7 +34,8 @@ def make_game_state():
         "players": {},
         "turn_order": [],
         "current_turn_index": 0,
-        "starting_life": 20
+        "starting_life": 20,
+        "notes": {}
     }
 
 # Scryfall proxy
@@ -197,12 +198,20 @@ async def handle_message(room, websocket, data):
     elif msg_type == "move_card":
         card_id = data["card_id"]
         if card_id in state["cards"]:
-            state["cards"][card_id]["x"] = data["x"]
-            state["cards"][card_id]["y"] = data["y"]
+            card = state["cards"][card_id]
+            new_zone = data.get("zone")
+            # Tokens cease to exist when leaving the battlefield (CR 111.7)
+            if card.get("token") and new_zone and new_zone != "battlefield":
+                name = card.get("name", "Token")
+                del state["cards"][card_id]
+                await broadcast(room, {"type": "card_removed", "card_id": card_id, "card_name": name})
+                return
+            card["x"] = data["x"]
+            card["y"] = data["y"]
             if "zone" in data:
-                state["cards"][card_id]["zone"] = data["zone"]
+                card["zone"] = data["zone"]
             if "face_down" in data:
-                state["cards"][card_id]["face_down"] = data["face_down"]
+                card["face_down"] = data["face_down"]
             await broadcast(room, {
                 "type": "card_moved",
                 "card_id": card_id,
@@ -316,6 +325,43 @@ async def handle_message(room, websocket, data):
                 "player_name": player["name"],
                 "text": text
             })
+
+    elif msg_type == "add_note":
+        note = data.get("note") or {}
+        nid = note.get("id")
+        if nid:
+            note["author_id"] = player["id"]
+            note["text"] = str(note.get("text", ""))[:500]
+            state["notes"][nid] = note
+            await broadcast(room, {"type": "note_added", "note": note})
+
+    elif msg_type == "move_note":
+        nid = data.get("note_id")
+        if nid in state["notes"]:
+            state["notes"][nid]["x"] = data["x"]
+            state["notes"][nid]["y"] = data["y"]
+            await broadcast(room, {
+                "type": "note_moved",
+                "note_id": nid,
+                "x": data["x"],
+                "y": data["y"]
+            }, exclude=websocket)
+
+    elif msg_type == "update_note":
+        nid = data.get("note_id")
+        if nid in state["notes"]:
+            state["notes"][nid]["text"] = str(data.get("text", ""))[:500]
+            await broadcast(room, {
+                "type": "note_updated",
+                "note_id": nid,
+                "text": state["notes"][nid]["text"]
+            }, exclude=websocket)
+
+    elif msg_type == "delete_note":
+        nid = data.get("note_id")
+        if nid in state["notes"]:
+            del state["notes"][nid]
+            await broadcast(room, {"type": "note_deleted", "note_id": nid})
 
 # Serve frontend
 app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")

@@ -48,11 +48,15 @@
             <div id="player-counters"></div>
             <div id="action-group">
                 <button onclick="drawCard()">Draw</button>
+                <button onclick="drawOpeningHand()">Hand 7</button>
+                <button onclick="mulligan()">Mulligan</button>
                 <button onclick="untapAll()">Untap</button>
                 <button onclick="passTurn()">Pass</button>
                 <button onclick="showDeckModal()">Deck</button>
                 <button onclick="shuffleLibrary()">Shuffle</button>
                 <button onclick="showAddCounterModal('player')">+Ctr</button>
+                <button onclick="showDiceModal()">Roll</button>
+                <button onclick="addNote()">+ Note</button>
                 <button onclick="toggleChatPanel()" id="chat-toggle-btn">Chat</button>
             </div>
         </div>
@@ -157,6 +161,24 @@
         <div id="context-actions"></div>
     </div>
 
+    <!-- Dice / Coin Modal -->
+    <div id="dice-modal" class="modal hidden">
+        <div class="modal-content dice-modal-content">
+            <h2>Roll</h2>
+            <div class="dice-buttons">
+                <button onclick="roll(4)">d4</button>
+                <button onclick="roll(6)">d6</button>
+                <button onclick="roll(10)">d10</button>
+                <button onclick="roll(20)">d20</button>
+                <button onclick="roll(100)">d100</button>
+                <button onclick="flipCoin()">Coin</button>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="hideDiceModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Token Search Modal -->
     <div id="token-modal" class="modal hidden">
         <div class="modal-content token-modal-content">
@@ -199,7 +221,7 @@
             </div>
             <div class="modal-buttons">
                 <button onclick="closeLibrarySearch(true)">Done (Shuffle)</button>
-                <button onclick="closeLibrarySearch(false)">Done</button>
+                <button onclick="closeLibrarySearch(false)">Done - Keep Order</button>
             </div>
         </div>
     </div>

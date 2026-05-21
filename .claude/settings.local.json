@@ -5,7 +5,9 @@
       "Bash(Get-Content \"C:\\\\Users\\\\cj\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\H--game-dev-TapNSac\\\\56d09bf9-74df-4337-bded-e3093854ba8f\\\\tasks\\\\bc2t1d0sz.output\" -ErrorAction SilentlyContinue)",
       "Bash(Select-Object -Last 10)",
       "Bash(Get-ChildItem -Path \"H:\\\\game dev\\\\TapNSac\" -Recurse -Depth 2)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"H:\\\\game dev\\\\TapNSac\" -Recurse -File)",
+      "Bash(Select-Object FullName, Length)"
     ]
   }
 }

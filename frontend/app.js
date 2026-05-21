@@ -2,8 +2,10 @@
 let ws = null;
 let playerId = null;
 let roomCode = null;
-let gameState = { cards: {}, players: {} };
+let gameState = { cards: {}, players: {}, notes: {} };
 const cardElements = new Map(); // Store card elements so we can find them even when not in DOM
+const noteElements = new Map();
+let mulliganTarget = 7;
 let hoveredCardId = null; // Track currently hovered card for keyboard shortcuts
 
 // Tabbed opponent view: only one opponent's battlefield is visible at a time.
@@ -105,8 +107,10 @@ function handleMessage(msg) {
         case 'init':
             playerId = msg.player_id;
             gameState = msg.state;
+            if (!gameState.notes) gameState.notes = {};
             ensureValidActiveOpp();   // pick default tab BEFORE rendering opp cards (avoids 1-frame flash)
             renderAllCards();
+            renderAllNotes();
             updatePlayerCount();
             updateMyLife();
             updateTurnUI();
@@ -253,7 +257,50 @@ function handleMessage(msg) {
         case 'chat':
             appendChatMessage(msg.player_name, msg.text, msg.player_id === playerId);
             break;
+
+        case 'card_removed':
+            removeCardLocal(msg.card_id);
+            if (msg.card_name) addLogEntry(`${msg.card_name} (token) ceased to exist`);
+            break;
+
+        case 'note_added':
+            gameState.notes[msg.note.id] = msg.note;
+            renderNote(msg.note);
+            break;
+
+        case 'note_moved': {
+            const n = gameState.notes[msg.note_id];
+            if (n) {
+                n.x = msg.x;
+                n.y = msg.y;
+                updateNotePosition(msg.note_id);
+            }
+            break;
+        }
+
+        case 'note_updated': {
+            const n = gameState.notes[msg.note_id];
+            if (n) {
+                n.text = msg.text;
+                const el = noteElements.get(msg.note_id);
+                const ta = el && el.querySelector('textarea');
+                if (ta && document.activeElement !== ta) ta.value = msg.text;
+            }
+            break;
+        }
+
+        case 'note_deleted':
+            removeNoteLocal(msg.note_id);
+            break;
     }
+}
+
+function removeCardLocal(cardId) {
+    const el = cardElements.get(cardId);
+    if (el) el.remove();
+    cardElements.delete(cardId);
+    delete gameState.cards[cardId];
+    scheduleRenderOpponents();
 }
 
 function updatePlayerCount() {
@@ -1158,6 +1205,34 @@ function drawCard() {
     ws.send(JSON.stringify({ type: 'move_card', card_id: topCard.id, x: 0, y: 0, zone: 'hand', face_down: false }));
 }
 
+function myName() {
+    return gameState.players[playerId]?.name || 'You';
+}
+
+function drawN(n) {
+    for (let i = 0; i < n; i++) drawCard();
+}
+
+function drawOpeningHand() {
+    const handCards = Object.values(gameState.cards).filter(c => c.zone === 'hand' && c.owner === playerId);
+    handCards.forEach(c => moveCardTo(c.id, 'library'));
+    shuffleLibrary();
+    mulliganTarget = 7;
+    setTimeout(() => drawN(7), 50);
+    addLogEntry(`${myName()} drew an opening hand`);
+    ws.send(JSON.stringify({ type: 'chat', text: 'drew an opening hand' }));
+}
+
+function mulligan() {
+    const handCards = Object.values(gameState.cards).filter(c => c.zone === 'hand' && c.owner === playerId);
+    handCards.forEach(c => moveCardTo(c.id, 'library'));
+    shuffleLibrary();
+    mulliganTarget = Math.max(0, mulliganTarget - 1);
+    setTimeout(() => drawN(mulliganTarget), 50);
+    addLogEntry(`${myName()} mulliganed to ${mulliganTarget}`);
+    ws.send(JSON.stringify({ type: 'chat', text: `mulliganed to ${mulliganTarget}` }));
+}
+
 function untapAll() {
     Object.values(gameState.cards)
         .filter(c => isControlledByMe(c) && c.tapped)
@@ -1268,8 +1343,17 @@ function endDrag(e) {
     card.x = normalizedX;
     card.y = normalizedY;
     card.zone = zone;
-    updateCardPosition(cardId);
 
+    if (card.token && zone !== 'battlefield') {
+        const tokenName = card.name;
+        ws.send(JSON.stringify({ type: 'move_card', card_id: cardId, x: normalizedX, y: normalizedY, zone, face_down: card.face_down }));
+        removeCardLocal(cardId);
+        addLogEntry(`${tokenName} (token) ceased to exist`);
+        dragging = null;
+        return;
+    }
+
+    updateCardPosition(cardId);
     ws.send(JSON.stringify({ type: 'move_card', card_id: cardId, x: normalizedX, y: normalizedY, zone, face_down: card.face_down }));
 
     dragging = null;
@@ -1297,6 +1381,7 @@ document.addEventListener('keydown', (e) => {
             hideDeckModal();
             hideCounterModal();
             hideTokenModal();
+            hideDiceModal();
         }
         return;
     }
@@ -1305,6 +1390,7 @@ document.addEventListener('keydown', (e) => {
         hideDeckModal();
         hideCounterModal();
         hideTokenModal();
+        hideDiceModal();
     }
 });
 
@@ -1624,11 +1710,27 @@ function moveCardTo(cardId, zone, position) {
     if (!card || !isControlledByMe(card)) return;
 
     const bfRect = battlefield.getBoundingClientRect();
+    const isTokenLeaving = card.token && zone !== 'battlefield';
+    const tokenName = card.name;
     card.zone = zone;
     card.face_down = zone === 'library'; // Only library is face-down
     // Use normalized coordinates (0-1) for battlefield, 0 for zones
     card.x = zone === 'battlefield' ? 100 / bfRect.width : 0;
     card.y = zone === 'battlefield' ? (bfRect.height - 150) / bfRect.height : 0;
+
+    if (isTokenLeaving) {
+        ws.send(JSON.stringify({
+            type: 'move_card',
+            card_id: cardId,
+            x: card.x,
+            y: card.y,
+            zone: zone,
+            face_down: card.face_down
+        }));
+        removeCardLocal(cardId);
+        addLogEntry(`${tokenName} (token) ceased to exist`);
+        return;
+    }
 
     updateCardPosition(cardId);
     updateCardFlipped(cardId);
@@ -1807,6 +1909,143 @@ function showTokenModal() {
 
 function hideTokenModal() {
     document.getElementById('token-modal').classList.add('hidden');
+}
+
+function showDiceModal() {
+    document.getElementById('dice-modal').classList.remove('hidden');
+}
+
+function hideDiceModal() {
+    document.getElementById('dice-modal').classList.add('hidden');
+}
+
+function roll(sides) {
+    const result = Math.floor(Math.random() * sides) + 1;
+    ws.send(JSON.stringify({ type: 'chat', text: `rolled d${sides}: ${result}` }));
+    hideDiceModal();
+}
+
+function flipCoin() {
+    const result = Math.random() < 0.5 ? 'Heads' : 'Tails';
+    ws.send(JSON.stringify({ type: 'chat', text: `flipped: ${result}` }));
+    hideDiceModal();
+}
+
+// Sticky notes
+function renderAllNotes() {
+    noteElements.forEach(el => el.remove());
+    noteElements.clear();
+    Object.values(gameState.notes || {}).forEach(renderNote);
+}
+
+function renderNote(note) {
+    let el = noteElements.get(note.id);
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'sticky-note';
+        el.dataset.noteId = note.id;
+        el.innerHTML = `
+            <div class="sticky-handle"></div>
+            <button class="sticky-close" title="Delete">×</button>
+            <textarea class="sticky-text" placeholder="Note..."></textarea>
+        `;
+        battlefield.appendChild(el);
+        noteElements.set(note.id, el);
+
+        const handle = el.querySelector('.sticky-handle');
+        handle.addEventListener('mousedown', (e) => startNoteDrag(e, note.id));
+
+        const ta = el.querySelector('.sticky-text');
+        ta.value = note.text || '';
+        let timer = null;
+        ta.addEventListener('input', () => {
+            const cur = gameState.notes[note.id];
+            if (cur) cur.text = ta.value;
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                ws.send(JSON.stringify({ type: 'update_note', note_id: note.id, text: ta.value }));
+            }, 300);
+        });
+
+        el.querySelector('.sticky-close').addEventListener('click', () => {
+            ws.send(JSON.stringify({ type: 'delete_note', note_id: note.id }));
+            removeNoteLocal(note.id);
+        });
+    } else {
+        const ta = el.querySelector('.sticky-text');
+        if (ta && document.activeElement !== ta) ta.value = note.text || '';
+    }
+    updateNotePosition(note.id);
+}
+
+function updateNotePosition(noteId) {
+    const note = gameState.notes[noteId];
+    const el = noteElements.get(noteId);
+    if (!note || !el) return;
+    const bfRect = battlefield.getBoundingClientRect();
+    el.style.left = `${(note.x ?? 0.5) * bfRect.width}px`;
+    el.style.top = `${(note.y ?? 0.5) * bfRect.height}px`;
+}
+
+function removeNoteLocal(noteId) {
+    const el = noteElements.get(noteId);
+    if (el) el.remove();
+    noteElements.delete(noteId);
+    delete gameState.notes[noteId];
+}
+
+function addNote() {
+    const note = {
+        id: crypto.randomUUID(),
+        text: '',
+        x: 0.4 + Math.random() * 0.2,
+        y: 0.4 + Math.random() * 0.2
+    };
+    gameState.notes[note.id] = note;
+    renderNote(note);
+    ws.send(JSON.stringify({ type: 'add_note', note }));
+}
+
+let noteDrag = null;
+function startNoteDrag(e, noteId) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = noteElements.get(noteId);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    noteDrag = {
+        noteId,
+        el,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top
+    };
+    document.addEventListener('mousemove', onNoteDrag);
+    document.addEventListener('mouseup', endNoteDrag);
+}
+
+function onNoteDrag(e) {
+    if (!noteDrag) return;
+    const bfRect = battlefield.getBoundingClientRect();
+    const x = e.clientX - bfRect.left - noteDrag.offsetX;
+    const y = e.clientY - bfRect.top - noteDrag.offsetY;
+    noteDrag.el.style.left = `${x}px`;
+    noteDrag.el.style.top = `${y}px`;
+}
+
+function endNoteDrag(e) {
+    if (!noteDrag) return;
+    const bfRect = battlefield.getBoundingClientRect();
+    const x = (e.clientX - bfRect.left - noteDrag.offsetX) / bfRect.width;
+    const y = (e.clientY - bfRect.top - noteDrag.offsetY) / bfRect.height;
+    const note = gameState.notes[noteDrag.noteId];
+    if (note) {
+        note.x = x;
+        note.y = y;
+    }
+    ws.send(JSON.stringify({ type: 'move_note', note_id: noteDrag.noteId, x, y }));
+    document.removeEventListener('mousemove', onNoteDrag);
+    document.removeEventListener('mouseup', endNoteDrag);
+    noteDrag = null;
 }
 
 async function searchTokens(query) {
@@ -1999,20 +2238,28 @@ document.getElementById('commander-search-input').addEventListener('keydown', (e
 // Library Search functionality
 let selectedLibraryCard = null;
 
+let librarySearchTookCount = 0;
+
 function openLibrarySearch() {
     selectedLibraryCard = null;
+    librarySearchTookCount = 0;
     document.getElementById('library-search-actions').classList.add('hidden');
     document.getElementById('library-search-input').value = '';
     renderLibrarySearchList('');
     document.getElementById('library-search-modal').classList.remove('hidden');
     document.getElementById('library-search-input').focus();
+    ws.send(JSON.stringify({ type: 'chat', text: 'is searching their library' }));
 }
 
 function closeLibrarySearch(shouldShuffle) {
     document.getElementById('library-search-modal').classList.add('hidden');
     selectedLibraryCard = null;
+    const took = librarySearchTookCount;
     if (shouldShuffle) {
         shuffleLibrary();
+        ws.send(JSON.stringify({ type: 'chat', text: `finished searching library (took ${took}, shuffled)` }));
+    } else {
+        ws.send(JSON.stringify({ type: 'chat', text: `finished searching library (took ${took}, DID NOT shuffle)` }));
     }
 }
 
@@ -2065,6 +2312,13 @@ function renderLibrarySearchList(filter) {
 function librarySearchMoveTo(destination) {
     if (!selectedLibraryCard) return;
 
+    const destLabel = {
+        hand: 'hand',
+        battlefield: 'battlefield',
+        top: 'top of library',
+        bottom: 'bottom of library'
+    }[destination] || destination;
+
     if (destination === 'hand') {
         moveCardTo(selectedLibraryCard, 'hand');
     } else if (destination === 'battlefield') {
@@ -2074,6 +2328,11 @@ function librarySearchMoveTo(destination) {
     } else if (destination === 'bottom') {
         moveCardTo(selectedLibraryCard, 'library', 'bottom');
     }
+
+    if (destination === 'hand' || destination === 'battlefield') {
+        librarySearchTookCount++;
+    }
+    ws.send(JSON.stringify({ type: 'chat', text: `moved a card from library to ${destLabel}` }));
 
     // Re-render and clear selection
     selectedLibraryCard = null;
