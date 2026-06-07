@@ -203,7 +203,7 @@ function handleMessage(msg) {
                 lifePlr.life = msg.life;
                 if (msg.player_id === playerId) updateMyLife();
                 scheduleRenderOpponents();
-                if (oldLife !== msg.life) addLogEntry(`${lifePlr.name}: ${oldLife} → ${msg.life} life`);
+                if (oldLife !== msg.life) addLogEntry(`${lifePlr.name}: ${oldLife} -> ${msg.life} life`);
             }
             break;
         }
@@ -387,7 +387,7 @@ function renderOpponents() {
 
         const nameEl = document.createElement('div');
         nameEl.className = 'opp-name';
-        nameEl.textContent = player.name + (pid === activeId ? ' ▶' : '');
+        nameEl.textContent = (pid === activeId ? '> ' : '') + player.name;
         el.appendChild(nameEl);
 
         const lifeEl = document.createElement('div');
@@ -441,7 +441,7 @@ function renderOppTabs() {
         const btn = document.createElement('button');
         btn.className = 'opp-tab' + (pid === activeOppId ? ' active' : '');
         btn.dataset.pid = pid;
-        btn.textContent = `${p.name}  ❤${p.life ?? 20}`;
+        btn.textContent = `${p.name}  ${p.life ?? 20}`;
         btn.addEventListener('click', () => setActiveOpp(pid));
         bar.appendChild(btn);
     });
@@ -822,6 +822,87 @@ function refreshSavedDecksList() {
 
 // Initialize saved decks list on page load
 refreshSavedDecksList();
+
+// Menu bar: replaces the old toolbar strip. Reuses the existing action
+// functions; arrow wrappers resolve them at click time so definition order
+// never matters.
+const MENUS = [
+    { label: 'Game', items: [
+        { label: 'Pass Turn', fn: () => passTurn() },
+        { label: 'Untap All', fn: () => untapAll() },
+        { label: 'Shuffle Library', fn: () => shuffleLibrary() },
+    ]},
+    { label: 'Cards', items: [
+        { label: 'Draw', fn: () => drawCard() },
+        { label: 'Opening Hand', fn: () => drawOpeningHand() },
+        { label: 'Mulligan', fn: () => mulligan() },
+        { label: 'Add Counter', fn: () => showAddCounterModal('player') },
+    ]},
+    { label: 'Deck', items: [
+        { label: 'Load Deck', fn: () => showDeckModal() },
+    ]},
+    { label: 'View', items: [
+        { label: 'Chat', fn: () => toggleChatPanel(), id: 'chat-toggle-btn' },
+        { label: 'Add Note', fn: () => addNote() },
+    ]},
+    { label: 'Roll', items: [
+        { label: 'Dice / Coin', fn: () => showDiceModal() },
+    ]},
+];
+
+function closeAllMenus() {
+    document.querySelectorAll('.menu.open, .menubar__item.open')
+        .forEach(el => el.classList.remove('open'));
+}
+
+function renderMenuBar() {
+    const bar = document.getElementById('menubar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    MENUS.forEach(menu => {
+        const group = document.createElement('div');
+        group.className = 'menubar__group';
+
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'menubar__item';
+        item.textContent = menu.label;
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'menu';
+
+        menu.items.forEach(entry => {
+            const mi = document.createElement('button');
+            mi.type = 'button';
+            mi.className = 'menu__item';
+            mi.textContent = entry.label;
+            if (entry.id) mi.id = entry.id;
+            mi.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeAllMenus();
+                try { entry.fn(); } catch (err) { console.error('Menu action failed:', err); }
+            });
+            dropdown.appendChild(mi);
+        });
+
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wasOpen = dropdown.classList.contains('open');
+            closeAllMenus();
+            if (!wasOpen) {
+                dropdown.classList.add('open');
+                item.classList.add('open');
+            }
+        });
+
+        group.appendChild(item);
+        group.appendChild(dropdown);
+        bar.appendChild(group);
+    });
+}
+
+document.addEventListener('click', closeAllMenus);
+renderMenuBar();
 
 // Card cache helpers
 function getCardCache() {
@@ -1946,7 +2027,7 @@ function renderNote(note) {
         el.dataset.noteId = note.id;
         el.innerHTML = `
             <div class="sticky-handle"></div>
-            <button class="sticky-close" title="Delete">×</button>
+            <button class="sticky-close" title="Delete">X</button>
             <textarea class="sticky-text" placeholder="Note..."></textarea>
         `;
         battlefield.appendChild(el);

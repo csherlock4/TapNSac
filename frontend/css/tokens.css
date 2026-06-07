@@ -1,0 +1,71 @@
+/* ============================================================
+   TapNSac — design tokens + global reset
+   Windows 95 chrome x Marathon-2025 "clean retro-future"
+   ============================================================ */
+
+/* Self-hosted faces. Drop the .woff2 files into frontend/fonts/ to
+   activate them; until then the fallback stacks below render. */
+@font-face {
+  font-family: "W95FA";
+  src: url("../fonts/W95FA.woff2") format("woff2");
+  font-display: swap;
+}
+@font-face {
+  font-family: "DepartureMono";
+  src: url("../fonts/DepartureMono.woff2") format("woff2");
+  font-display: swap;
+}
+
+:root {
+  /* Core palette (Marathon 2025) */
+  --bone: #EDE6D8;
+  --ink: #16140F;
+  --teal: #1FB2A6;
+  --teal-deep: #0E5C55;
+  --orange: #FF5A1F;
+  --amber: #E8A33D;
+  --danger: #C2362B;
+
+  /* Surfaces */
+  --desktop: #0E1412;   /* dark technical play surface */
+  --chrome: #C0C0C0;    /* Win95 system gray */
+  --chrome-2: #CFCFC7;  /* hovered chrome */
+  --field: #0E1412;     /* sunken dark input / list field */
+
+  /* Bevels (Win95 raised/sunken) */
+  --bevel-light: #FFFFFF;
+  --bevel-light-2: #E6E6DE;
+  --bevel-dark: #808078;
+  --bevel-darker: #2E2E28;
+
+  /* Type */
+  --font-chrome: "W95FA", "Tahoma", "Segoe UI", sans-serif;
+  --font-label: "Bebas Neue", "Oswald", "Arial Narrow", "Impact", sans-serif;
+  --font-mono: "DepartureMono", "IBM Plex Mono", "Consolas", "Courier New", monospace;
+
+  /* Spacing scale */
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+  --sp-6: 24px;
+}
+
+/* ---- Global reset / anti-"AI tell" enforcement ----
+   One place that kills every rounded corner and neon glow in the app,
+   regardless of what the legacy rules in style.css declare. */
+* {
+  border-radius: 0 !important;
+  text-shadow: none !important;
+}
+
+/* Win95-style chunky scrollbars */
+::-webkit-scrollbar { width: 15px; height: 15px; }
+::-webkit-scrollbar-track { background: var(--chrome); }
+::-webkit-scrollbar-thumb {
+  background: var(--chrome);
+  border: 2px solid;
+  border-color: var(--bevel-light) var(--bevel-darker) var(--bevel-darker) var(--bevel-light);
+}
+::-webkit-scrollbar-thumb:active { background: var(--bevel-dark); }

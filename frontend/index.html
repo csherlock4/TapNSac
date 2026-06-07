@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tap N Sac</title>
+    <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/skin.css">
 </head>
 <body>
     <!-- Lobby -->
@@ -15,8 +17,8 @@
             <div class="lobby-life-row">
                 <label for="starting-life-select">Starting Life</label>
                 <select id="starting-life-select" onchange="onStartingLifeChange()">
-                    <option value="20">20 — Standard</option>
-                    <option value="40">40 — Commander</option>
+                    <option value="20">20 / Standard</option>
+                    <option value="40">40 / Commander</option>
                     <option value="custom">Custom...</option>
                 </select>
                 <input type="number" id="starting-life-custom" value="20" min="1" max="999" class="hidden">
@@ -46,19 +48,7 @@
                 <div id="commander-damage"></div>
             </div>
             <div id="player-counters"></div>
-            <div id="action-group">
-                <button onclick="drawCard()">Draw</button>
-                <button onclick="drawOpeningHand()">Hand 7</button>
-                <button onclick="mulligan()">Mulligan</button>
-                <button onclick="untapAll()">Untap</button>
-                <button onclick="passTurn()">Pass</button>
-                <button onclick="showDeckModal()">Deck</button>
-                <button onclick="shuffleLibrary()">Shuffle</button>
-                <button onclick="showAddCounterModal('player')">+Ctr</button>
-                <button onclick="showDiceModal()">Roll</button>
-                <button onclick="addNote()">+ Note</button>
-                <button onclick="toggleChatPanel()" id="chat-toggle-btn">Chat</button>
-            </div>
+            <nav id="menubar" class="menubar" aria-label="Game menu"></nav>
         </div>
 
         <div id="opp-tab-bar"></div>
