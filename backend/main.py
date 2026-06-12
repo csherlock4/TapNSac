@@ -300,6 +300,10 @@ class PassTurn(_Msg):
     type: Literal["pass_turn"]
 
 
+class RandomizeTurnOrder(_Msg):
+    type: Literal["randomize_turn_order"]
+
+
 class SetCommanderDamage(_Msg):
     type: Literal["set_commander_damage"]
     target_player_id: str = Field(max_length=64)
@@ -339,7 +343,8 @@ Incoming = Annotated[
     Union[
         AddCards, MoveCard, TapCard, FlipCard, TransformCard, ShuffleLibrary,
         SetLife, SetPlayerCounter, SetCardCounter, ChangeControl, PassTurn,
-        SetCommanderDamage, Chat, AddNote, MoveNote, UpdateNote, DeleteNote,
+        RandomizeTurnOrder, SetCommanderDamage, Chat, AddNote, MoveNote,
+        UpdateNote, DeleteNote,
     ],
     Field(discriminator="type"),
 ]
@@ -565,6 +570,21 @@ async def handle_message(room, websocket, data):
                 "type": "turn_changed",
                 "active_player_id": active,
                 "current_turn_index": new_idx
+            })
+
+    elif msg_type == "randomize_turn_order":
+        order = list(state["turn_order"])
+        if order:
+            random.shuffle(order)
+            state["turn_order"] = order
+            state["current_turn_index"] = 0
+            active = order[0]
+            await broadcast(room, {
+                "type": "turn_order_set",
+                "turn_order": order,
+                "current_turn_index": 0,
+                "active_player_id": active,
+                "randomized": True,
             })
 
     elif msg_type == "set_commander_damage":

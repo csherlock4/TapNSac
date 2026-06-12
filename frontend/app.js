@@ -243,6 +243,20 @@ function handleMessage(msg) {
             break;
         }
 
+        case 'turn_order_set': {
+            gameState.turn_order = msg.turn_order;
+            gameState.current_turn_index = msg.current_turn_index;
+            updateTurnUI();
+            scheduleRenderOpponents();
+            const firstName = gameState.players[msg.active_player_id]?.name;
+            if (firstName) {
+                addLogEntry(msg.randomized
+                    ? `🎲 Turn order randomized — ${firstName} goes first`
+                    : `${firstName}'s turn`);
+            }
+            break;
+        }
+
         case 'commander_damage_changed':
             if (gameState.players[msg.target_player_id]) {
                 if (!gameState.players[msg.target_player_id].commander_damage) {
@@ -490,6 +504,13 @@ function adjustLife(delta) {
 function passTurn() {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'pass_turn' }));
+    }
+}
+
+// Shuffle the turn order and pick a random starting player. Shared with everyone.
+function randomizeTurnOrder() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'randomize_turn_order' }));
     }
 }
 
@@ -829,6 +850,7 @@ refreshSavedDecksList();
 const MENUS = [
     { label: 'Game', items: [
         { label: 'Pass Turn', fn: () => passTurn() },
+        { label: 'Roll for First Turn', fn: () => randomizeTurnOrder() },
         { label: 'Untap All', fn: () => untapAll() },
         { label: 'Shuffle Library', fn: () => shuffleLibrary() },
     ]},
